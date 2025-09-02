@@ -254,11 +254,11 @@ class Interpreter {
     }
 
     /**
- * Convert this object into a string.
- * @returns {string} String value.
- * @override
- */
-    toString = function () {
+     * Convert this object into a string.
+     * @returns {string} String value.
+     * @override
+     */
+    toString() {
       if (!Interpreter.currentInterpreter_) {
         // Called from outside an interpreter.
         return '[object Interpreter.Object]';
@@ -341,7 +341,7 @@ class Interpreter {
      * @returns {Interpreter.Value} Value.
      * @override
      */
-    valueOf = function () {
+    valueOf() {
       if (!Interpreter.currentInterpreter_) {
         // Called from outside an interpreter.
         return this;
@@ -393,13 +393,13 @@ class Interpreter {
      * 1 - execute natively (risk of unresponsive program).
      * 2 - execute in separate thread (not supported by IE 9).
      */
-    this['REGEXP_MODE'] = 2;
+    this.REGEXP_MODE = 2;
 
     /**
      * If REGEXP_MODE = 2, the length of time (in ms) to allow a RegExp
      * thread to execute before terminating it.
      */
-    this['REGEXP_THREAD_TIMEOUT'] = 1000;
+    this.REGEXP_THREAD_TIMEOUT = 1000;
 
     /**
      * Length of time (in ms) to allow a polyfill to run before ending step.
@@ -408,7 +408,7 @@ class Interpreter {
      * (execution will resume in the polyfill in the next step).
      * If set to Infinity, polyfills will run to completion in a single step.
      */
-    this['POLYFILL_TIMEOUT'] = 1000;
+    this.POLYFILL_TIMEOUT = 1000;
 
     /**
      * Flag indicating that a getter function needs to be called immediately.
@@ -451,7 +451,7 @@ class Interpreter {
     }
     // Get a handle on Acorn's node_t object.
     var nodeConstructor = code.constructor;
-    this.newNode = function () {
+    this.newNode = () => {
       return new nodeConstructor({ 'options': {} });
     };
     // Clone the root 'Program' node so that the AST may be modified.
@@ -672,7 +672,7 @@ class Interpreter {
       if (!endTime && !node.end) {
         // Ideally this would be defined at the top of the function, but that
         // wastes time if the step isn't a polyfill.
-        endTime = Date.now() + this['POLYFILL_TIMEOUT'];
+        endTime = Date.now() + this.POLYFILL_TIMEOUT;
       }
     } while (!node.end && endTime > Date.now());
     return true;
@@ -756,10 +756,8 @@ class Interpreter {
     this.initJSON(globalObject);
 
     // Initialize global functions.
-    var thisInterpreter = this;
-    var wrapper;
     var func = this.createNativeFunction(
-      function (_x) { throw EvalError("Can't happen"); }, false);
+      (_x) => { throw EvalError("Can't happen"); }, false);
     func.eval = true;
     this.setProperty(globalObject, 'eval', func,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
@@ -785,13 +783,13 @@ class Interpreter {
       [encodeURI, 'encodeURI'], [encodeURIComponent, 'encodeURIComponent']
     ];
     for (var i = 0; i < strFunctions.length; i++) {
-      wrapper = (function (nativeFunc) {
-        return function (str) {
+      const wrapper = ((nativeFunc) => {
+        return (str) => {
           try {
             return nativeFunc(str);
           } catch (e) {
             // decodeURI('%xy') will throw an error.  Catch and rethrow.
-            thisInterpreter.throwException(thisInterpreter.URI_ERROR, e.message);
+            this.throwException(this.URI_ERROR, e.message);
           }
         };
       })(strFunctions[i][0]);
@@ -800,41 +798,46 @@ class Interpreter {
         Interpreter.NONENUMERABLE_DESCRIPTOR);
     }
 
-    wrapper = function setTimeout(var_args) {
-      return thisInterpreter.createTask_(false, arguments);
+    const setTimeout = (var_args) => {
+      return this.createTask_(false, arguments);
     };
     this.setProperty(globalObject, 'setTimeout',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(setTimeout, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function setInterval(var_args) {
-      return thisInterpreter.createTask_(true, arguments);
+    const setInterval = (var_args) => {
+      return this.createTask_(true, arguments);
     };
     this.setProperty(globalObject, 'setInterval',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(setInterval, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function clearTimeout(pid) {
-      thisInterpreter.deleteTask_(pid);
+    const clearTimeout = (pid) => {
+      this.deleteTask_(pid);
     };
     this.setProperty(globalObject, 'clearTimeout',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(clearTimeout, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function clearInterval(pid) {
-      thisInterpreter.deleteTask_(pid);
+    const clearInterval = (pid) => {
+      this.deleteTask_(pid);
     };
     this.setProperty(globalObject, 'clearInterval',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(clearInterval, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
     // Preserve public properties from being pruned/renamed by JS compilers.
     // Add others as needed.
-    this['OBJECT'] = this.OBJECT; this['OBJECT_PROTO'] = this.OBJECT_PROTO;
-    this['FUNCTION'] = this.FUNCTION; this['FUNCTION_PROTO'] = this.FUNCTION_PROTO;
-    this['ARRAY'] = this.ARRAY; this['ARRAY_PROTO'] = this.ARRAY_PROTO;
-    this['REGEXP'] = this.REGEXP; this['REGEXP_PROTO'] = this.REGEXP_PROTO;
-    this['DATE'] = this.DATE; this['DATE_PROTO'] = this.DATE_PROTO;
+    this.OBJECT = this.OBJECT;
+    this.OBJECT_PROTO = this.OBJECT_PROTO;
+    this.FUNCTION = this.FUNCTION;
+    this.FUNCTION_PROTO = this.FUNCTION_PROTO;
+    this.ARRAY = this.ARRAY;
+    this.ARRAY_PROTO = this.ARRAY_PROTO;
+    this.REGEXP = this.REGEXP;
+    this.REGEXP_PROTO = this.REGEXP_PROTO;
+    this.DATE = this.DATE;
+    this.DATE_PROTO = this.DATE_PROTO;
 
     // Run any user-provided initialization.
     if (this.initFunc_) {
@@ -847,11 +850,9 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initFunction(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     var identifierRegexp = /^[A-Za-z_$][\w$]*$/;
     // Function constructor.
-    wrapper = function Function(var_args) {
+    const FunctionWrapper = (var_args) => {
       if (arguments.length) {
         var code = String(arguments[arguments.length - 1]);
       } else {
@@ -863,7 +864,7 @@ class Interpreter {
         for (var i = 0; i < args.length; i++) {
           var name = args[i];
           if (!identifierRegexp.test(name)) {
-            thisInterpreter.throwException(thisInterpreter.SYNTAX_ERROR,
+            this.throwException(this.SYNTAX_ERROR,
               'Invalid function argument: ' + name);
           }
         }
@@ -872,16 +873,16 @@ class Interpreter {
       // Acorn needs to parse code in the context of a function or else `return`
       // statements will be syntax errors.
       try {
-        var ast = thisInterpreter.parse_('(function(' + argsStr + ') {' + code + '})',
-          'function' + (thisInterpreter.functionCodeNumber_++));
+        var ast = this.parse_('(function(' + argsStr + ') {' + code + '})',
+          'function' + (this.functionCodeNumber_++));
       } catch (e) {
         // Acorn threw a SyntaxError.  Rethrow as a trappable error.
-        thisInterpreter.throwException(thisInterpreter.SYNTAX_ERROR,
+        this.throwException(this.SYNTAX_ERROR,
           'Invalid code: ' + e.message);
       }
       if (ast.body.length !== 1) {
         // Function('a', 'return a + 6;}; {alert(1);');
-        thisInterpreter.throwException(thisInterpreter.SYNTAX_ERROR,
+        this.throwException(this.SYNTAX_ERROR,
           'Invalid code in function body');
       }
       var node = ast.body[0].expression;
@@ -889,10 +890,10 @@ class Interpreter {
       // object created by stepCallExpression and assigned to `this` is discarded.
       // Interestingly, the scope for constructed functions is the global scope,
       // even if they were constructed in some other scope.
-      return thisInterpreter.createFunction(node, thisInterpreter.globalScope,
+      return this.createFunction(node, this.globalScope,
         'anonymous');
     };
-    this.FUNCTION = this.createNativeFunction(wrapper, true);
+    this.FUNCTION = this.createNativeFunction(FunctionWrapper, true);
 
     this.setProperty(globalObject, 'Function', this.FUNCTION,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
@@ -910,9 +911,9 @@ class Interpreter {
       Interpreter.READONLY_NONENUMERABLE_DESCRIPTOR);
     this.FUNCTION_PROTO.class = 'Function';
 
-    wrapper = function apply_(func, thisArg, args) {
+    const apply_ = (func, thisArg, args) => {
       var state =
-        thisInterpreter.stateStack[thisInterpreter.stateStack.length - 1];
+        this.stateStack[this.stateStack.length - 1];
       // Rewrite the current CallExpression state to apply a different function.
       // Note: 'func' is provided by the polyfill as a non-standard argument.
       state.func_ = func;
@@ -926,13 +927,13 @@ class Interpreter {
           // The pseudo array's properties object happens to be array-like.
           state.arguments_ = Array.from(args.properties);
         } else {
-          thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+          this.throwException(this.TYPE_ERROR,
             'CreateListFromArrayLike called on non-object');
         }
       }
       state.doneExec_ = false;
     };
-    this.setNativeFunctionPrototype(this.FUNCTION, 'apply', wrapper);
+    this.setNativeFunctionPrototype(this.FUNCTION, 'apply', apply_);
 
     this.polyfills_.push(
       /* POLYFILL START */
@@ -950,9 +951,9 @@ class Interpreter {
       /* POLYFILL END */
     );
 
-    wrapper = function call(thisArg /*, var_args */) {
+    const call = (thisArg /*, var_args */) => {
       var state =
-        thisInterpreter.stateStack[thisInterpreter.stateStack.length - 1];
+        this.stateStack[this.stateStack.length - 1];
       // Rewrite the current CallExpression state to call a different function.
       state.func_ = this;
       // Assign the `this` object.
@@ -964,7 +965,7 @@ class Interpreter {
       }
       state.doneExec_ = false;
     };
-    this.setNativeFunctionPrototype(this.FUNCTION, 'call', wrapper);
+    this.setNativeFunctionPrototype(this.FUNCTION, 'call', call);
 
     this.polyfills_.push(
       /* POLYFILL START */
@@ -998,19 +999,19 @@ class Interpreter {
 
     // Function has no parent to inherit from, so it needs its own mandatory
     // toString and valueOf functions.
-    wrapper = function toString() {
+    const toString = () => {
       return String(this);
     };
-    this.setNativeFunctionPrototype(this.FUNCTION, 'toString', wrapper);
+    this.setNativeFunctionPrototype(this.FUNCTION, 'toString', toString);
     this.setProperty(this.FUNCTION, 'toString',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(toString, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
-    wrapper = function valueOf() {
+    const valueOf = () => {
       return this.valueOf();
     };
-    this.setNativeFunctionPrototype(this.FUNCTION, 'valueOf', wrapper);
+    this.setNativeFunctionPrototype(this.FUNCTION, 'valueOf', valueOf);
     this.setProperty(this.FUNCTION, 'valueOf',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(valueOf, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
   }
 
@@ -1019,31 +1020,29 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initObject(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // Object constructor.
-    wrapper = function Object(value) {
+    const ObjectWrapper = (value) => {
       if (value === undefined || value === null) {
         // Create a new object.
-        if (thisInterpreter.calledWithNew()) {
+        if (this.calledWithNew()) {
           // Called as `new Object()`.
           return this;
         } else {
           // Called as `Object()`.
-          return thisInterpreter.createObjectProto(thisInterpreter.OBJECT_PROTO);
+          return this.createObjectProto(this.OBJECT_PROTO);
         }
       }
       if (!(value instanceof Interpreter.Object)) {
         // Wrap the value as an object.
-        var box = thisInterpreter.createObjectProto(
-          thisInterpreter.getPrototype(value));
+        const box = this.createObjectProto(
+          this.getPrototype(value));
         box.data = value;
         return box;
       }
       // Return the provided object.
       return value;
     };
-    this.OBJECT = this.createNativeFunction(wrapper, true);
+    this.OBJECT = this.createNativeFunction(ObjectWrapper, true);
     // Throw away the created prototype and use the root prototype.
     this.setProperty(this.OBJECT, 'prototype', this.OBJECT_PROTO,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
@@ -1057,47 +1056,47 @@ class Interpreter {
      * If so, then throw an error in the call stack.
      * @param {Interpreter.Value} value Value to check.
      */
-    var throwIfNullUndefined = function (value) {
+    const throwIfNullUndefined = (value) => {
       if (value === undefined || value === null) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           "Cannot convert '" + value + "' to object");
       }
     };
 
     // Static methods on Object.
-    wrapper = function getOwnPropertyNames(obj) {
+    const getOwnPropertyNames = (obj) => {
       throwIfNullUndefined(obj);
       var props = (obj instanceof Interpreter.Object) ? obj.properties : obj;
-      return thisInterpreter.nativeToPseudo(Object.getOwnPropertyNames(props));
+      return this.nativeToPseudo(Object.getOwnPropertyNames(props));
     };
     this.setProperty(this.OBJECT, 'getOwnPropertyNames',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(getOwnPropertyNames, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function keys(obj) {
+    const keys = (obj) => {
       throwIfNullUndefined(obj);
       if (obj instanceof Interpreter.Object) {
         obj = obj.properties;
       }
-      return thisInterpreter.nativeToPseudo(Object.keys(obj));
+      return this.nativeToPseudo(Object.keys(obj));
     };
     this.setProperty(this.OBJECT, 'keys',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(keys, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function create_(proto) {
+    const create_ = (proto) => {
       // Support for the second argument is the responsibility of a polyfill.
       if (proto === null) {
-        return thisInterpreter.createObjectProto(null);
+        return this.createObjectProto(null);
       }
       if (!(proto instanceof Interpreter.Object)) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           'Object prototype may only be an Object or null, not ' + proto);
       }
-      return thisInterpreter.createObjectProto(proto);
+      return this.createObjectProto(proto);
     };
     this.setProperty(this.OBJECT, 'create',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(create_, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
     // Add a polyfill to handle create's second argument.
@@ -1115,28 +1114,28 @@ class Interpreter {
       /* POLYFILL END */
     );
 
-    wrapper = function defineProperty(obj, prop, descriptor) {
+    const defineProperty = (obj, prop, descriptor) => {
       prop = String(prop);
       if (!(obj instanceof Interpreter.Object)) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           'Object.defineProperty called on non-object: ' + obj);
       }
       if (!(descriptor instanceof Interpreter.Object)) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           'Property description must be an object');
       }
       if (obj.preventExtensions && !(prop in obj.properties)) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           "Can't define property '" + prop + "', object is not extensible");
       }
       // The polyfill guarantees no inheritance and no getter functions.
       // Therefore the descriptor properties map is the native object needed.
-      thisInterpreter.setProperty(obj, prop, Interpreter.VALUE_IN_DESCRIPTOR,
+      this.setProperty(obj, prop, Interpreter.VALUE_IN_DESCRIPTOR,
         descriptor.properties);
       return obj;
     };
     this.setProperty(this.OBJECT, 'defineProperty',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(defineProperty, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
     this.polyfills_.push(
@@ -1170,9 +1169,9 @@ class Interpreter {
       /* POLYFILL END */
     );
 
-    wrapper = function getOwnPropertyDescriptor(obj, prop) {
+    const getOwnPropertyDescriptor = (obj, prop) => {
       if (!(obj instanceof Interpreter.Object)) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           'Object.getOwnPropertyDescriptor called on non-object: ' + obj);
       }
       prop = String(prop);
@@ -1184,49 +1183,49 @@ class Interpreter {
       var setter = obj.setter[prop];
 
       var pseudoDescriptor =
-        thisInterpreter.createObjectProto(thisInterpreter.OBJECT_PROTO);
+        this.createObjectProto(this.OBJECT_PROTO);
       if (getter || setter) {
-        thisInterpreter.setProperty(pseudoDescriptor, 'get', getter);
-        thisInterpreter.setProperty(pseudoDescriptor, 'set', setter);
+        this.setProperty(pseudoDescriptor, 'get', getter);
+        this.setProperty(pseudoDescriptor, 'set', setter);
       } else {
-        thisInterpreter.setProperty(pseudoDescriptor, 'value',
+        this.setProperty(pseudoDescriptor, 'value',
             /** @type {!Interpreter.Value} */(descriptor['value']));
-        thisInterpreter.setProperty(pseudoDescriptor, 'writable',
+        this.setProperty(pseudoDescriptor, 'writable',
           descriptor['writable']);
       }
-      thisInterpreter.setProperty(pseudoDescriptor, 'configurable',
+      this.setProperty(pseudoDescriptor, 'configurable',
         descriptor['configurable']);
-      thisInterpreter.setProperty(pseudoDescriptor, 'enumerable',
+      this.setProperty(pseudoDescriptor, 'enumerable',
         descriptor['enumerable']);
       return pseudoDescriptor;
     };
     this.setProperty(this.OBJECT, 'getOwnPropertyDescriptor',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(getOwnPropertyDescriptor, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function getPrototypeOf(obj) {
+    const getPrototypeOf = (obj) => {
       throwIfNullUndefined(obj);
-      return thisInterpreter.getPrototype(obj);
+      return this.getPrototype(obj);
     };
     this.setProperty(this.OBJECT, 'getPrototypeOf',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(getPrototypeOf, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function isExtensible(obj) {
+    const isExtensible = (obj) => {
       return Boolean(obj) && !obj.preventExtensions;
     };
     this.setProperty(this.OBJECT, 'isExtensible',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(isExtensible, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function preventExtensions(obj) {
+    const preventExtensions = (obj) => {
       if (obj instanceof Interpreter.Object) {
         obj.preventExtensions = true;
       }
       return obj;
     };
     this.setProperty(this.OBJECT, 'preventExtensions',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(preventExtensions, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
     // Instance methods on Object.
@@ -1237,7 +1236,7 @@ class Interpreter {
     this.setNativeFunctionPrototype(this.OBJECT, 'valueOf',
       Interpreter.Object.prototype.valueOf);
 
-    wrapper = function hasOwnProperty(prop) {
+    const hasOwnProperty = (prop) => {
       throwIfNullUndefined(this);
       if (this instanceof Interpreter.Object) {
         return String(prop) in this.properties;
@@ -1245,9 +1244,9 @@ class Interpreter {
       // Primitive.
       return this.hasOwnProperty(prop);
     };
-    this.setNativeFunctionPrototype(this.OBJECT, 'hasOwnProperty', wrapper);
+    this.setNativeFunctionPrototype(this.OBJECT, 'hasOwnProperty', hasOwnProperty);
 
-    wrapper = function propertyIsEnumerable(prop) {
+    const propertyIsEnumerable = (prop) => {
       throwIfNullUndefined(this);
       if (this instanceof Interpreter.Object) {
         return Object.prototype.propertyIsEnumerable.call(this.properties, prop);
@@ -1255,12 +1254,12 @@ class Interpreter {
       // Primitive.
       return this.propertyIsEnumerable(prop);
     };
-    this.setNativeFunctionPrototype(this.OBJECT, 'propertyIsEnumerable', wrapper);
+    this.setNativeFunctionPrototype(this.OBJECT, 'propertyIsEnumerable', propertyIsEnumerable);
 
-    wrapper = function isPrototypeOf(obj) {
+    const isPrototypeOf = (obj) => {
       while (true) {
         // Note, circular loops shouldn't be possible.
-        obj = thisInterpreter.getPrototype(obj);
+        obj = this.getPrototype(obj);
         if (!obj) {
           // No parent; reached the top.
           return false;
@@ -1270,7 +1269,7 @@ class Interpreter {
         }
       }
     };
-    this.setNativeFunctionPrototype(this.OBJECT, 'isPrototypeOf', wrapper);
+    this.setNativeFunctionPrototype(this.OBJECT, 'isPrototypeOf', isPrototypeOf);
   }
 
   /**
@@ -1278,21 +1277,19 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initArray(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // Array constructor.
-    wrapper = function Array(var_args) {
-      if (thisInterpreter.calledWithNew()) {
+    const ArrayWrapper = (var_args) => {
+      if (this.calledWithNew()) {
         // Called as `new Array()`.
         var newArray = this;
       } else {
         // Called as `Array()`.
-        var newArray = thisInterpreter.createArray();
+        var newArray = this.createArray();
       }
       var first = arguments[0];
       if (arguments.length === 1 && typeof first === 'number') {
         if (isNaN(Interpreter.legalArrayLength(first))) {
-          thisInterpreter.throwException(thisInterpreter.RANGE_ERROR,
+          this.throwException(this.RANGE_ERROR,
             'Invalid array length: ' + first);
         }
         newArray.properties.length = first;
@@ -1304,17 +1301,17 @@ class Interpreter {
       }
       return newArray;
     };
-    this.ARRAY = this.createNativeFunction(wrapper, true);
+    this.ARRAY = this.createNativeFunction(ArrayWrapper, true);
     this.ARRAY_PROTO = this.ARRAY.properties['prototype'];
     this.setProperty(globalObject, 'Array', this.ARRAY,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
     // Static methods on Array.
-    wrapper = function isArray(obj) {
+    const isArray = (obj) => {
       return obj && obj.class === 'Array';
     };
     this.setProperty(this.ARRAY, 'isArray',
-      this.createNativeFunction(wrapper, false),
+      this.createNativeFunction(isArray, false),
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
     // Instance methods on Array.
@@ -1784,12 +1781,10 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initString(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // String constructor.
-    wrapper = function String(value) {
+    const StringWrapper = (value) => {
       value = arguments.length ? Interpreter.nativeGlobal.String(value) : '';
-      if (thisInterpreter.calledWithNew()) {
+      if (this.calledWithNew()) {
         // Called as `new String()`.
         this.data = value;
         return this;
@@ -1798,7 +1793,7 @@ class Interpreter {
         return value;
       }
     };
-    this.STRING = this.createNativeFunction(wrapper, true);
+    this.STRING = this.createNativeFunction(StringWrapper, true);
     this.setProperty(globalObject, 'String', this.STRING,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
@@ -1817,28 +1812,28 @@ class Interpreter {
         String.prototype[functions[i]]);
     }
 
-    wrapper = function localeCompare(compareString, locales, options) {
-      locales = thisInterpreter.pseudoToNative(locales);
-      options = thisInterpreter.pseudoToNative(options);
+    const localeCompare = (compareString, locales, options) => {
+      locales = this.pseudoToNative(locales);
+      options = this.pseudoToNative(options);
       try {
         return String(this).localeCompare(compareString,
             /** @type {?} */(locales), /** @type {?} */(options));
       } catch (e) {
-        thisInterpreter.throwException(thisInterpreter.ERROR,
+        this.throwException(this.ERROR,
           'localeCompare: ' + e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.STRING, 'localeCompare', wrapper);
+    this.setNativeFunctionPrototype(this.STRING, 'localeCompare', localeCompare);
 
-    wrapper = function split(separator, limit, callback) {
+    const split = (separator, limit, callback) => {
       var string = String(this);
       limit = limit ? Number(limit) : undefined;
       // Example of catastrophic split RegExp:
       // 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaac'.split(/^(a+)+b/)
-      if (thisInterpreter.isa(separator, thisInterpreter.REGEXP)) {
+      if (this.isa(separator, this.REGEXP)) {
         separator = separator.data;
-        thisInterpreter.maybeThrowRegExp(separator, callback);
-        if (thisInterpreter['REGEXP_MODE'] === 2) {
+        this.maybeThrowRegExp(separator, callback);
+        if (this.REGEXP_MODE === 2) {
           if (Interpreter.vm) {
             // Run split in vm.
             var sandbox = {
@@ -1848,18 +1843,18 @@ class Interpreter {
             };
             var code = 'string.split(separator, limit)';
             var jsList =
-              thisInterpreter.vmCall(code, sandbox, separator, callback);
+              this.vmCall(code, sandbox, separator, callback);
             if (jsList !== Interpreter.REGEXP_TIMEOUT) {
-              callback(thisInterpreter.nativeToPseudo(jsList));
+              callback(this.nativeToPseudo(jsList));
             }
           } else {
             // Run split in separate thread.
-            var splitWorker = thisInterpreter.createWorker();
-            var pid = thisInterpreter.regExpTimeout(separator, splitWorker,
+            var splitWorker = this.createWorker();
+            var pid = this.regExpTimeout(separator, splitWorker,
               callback);
             splitWorker.onmessage = function (e) {
               clearTimeout(pid);
-              callback(thisInterpreter.nativeToPseudo(e.data));
+              callback(this.nativeToPseudo(e.data));
             };
             splitWorker.postMessage(['split', string, separator, limit]);
           }
@@ -1868,18 +1863,18 @@ class Interpreter {
       }
       // Run split natively.
       var jsList = string.split(separator, limit);
-      callback(thisInterpreter.nativeToPseudo(jsList));
+      callback(this.nativeToPseudo(jsList));
     };
-    this.setAsyncFunctionPrototype(this.STRING, 'split', wrapper);
+    this.setAsyncFunctionPrototype(this.STRING, 'split', split);
 
-    wrapper = function match(regexp, callback) {
+    const match = (regexp, callback) => {
       var string = String(this);
-      regexp = thisInterpreter.isa(regexp, thisInterpreter.REGEXP) ?
+      regexp = this.isa(regexp, this.REGEXP) ?
         regexp.data : new RegExp(regexp);
       // Example of catastrophic match RegExp:
       // 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaac'.match(/^(a+)+b/)
-      thisInterpreter.maybeThrowRegExp(regexp, callback);
-      if (thisInterpreter['REGEXP_MODE'] === 2) {
+      this.maybeThrowRegExp(regexp, callback);
+      if (this.REGEXP_MODE === 2) {
         if (Interpreter.vm) {
           // Run match in vm.
           var sandbox = {
@@ -1887,17 +1882,17 @@ class Interpreter {
             'regexp': regexp,
           };
           var code = 'string.match(regexp)';
-          var m = thisInterpreter.vmCall(code, sandbox, regexp, callback);
+          var m = this.vmCall(code, sandbox, regexp, callback);
           if (m !== Interpreter.REGEXP_TIMEOUT) {
-            callback(m && thisInterpreter.matchToPseudo_(m));
+            callback(m && this.matchToPseudo_(m));
           }
         } else {
           // Run match in separate thread.
-          var matchWorker = thisInterpreter.createWorker();
-          var pid = thisInterpreter.regExpTimeout(regexp, matchWorker, callback);
+          var matchWorker = this.createWorker();
+          var pid = this.regExpTimeout(regexp, matchWorker, callback);
           matchWorker.onmessage = function (e) {
             clearTimeout(pid);
-            callback(e.data && thisInterpreter.matchToPseudo_(e.data));
+            callback(e.data && this.matchToPseudo_(e.data));
           };
           matchWorker.postMessage(['match', string, regexp]);
         }
@@ -1905,21 +1900,21 @@ class Interpreter {
       }
       // Run match natively.
       var m = string.match(regexp);
-      callback(m && thisInterpreter.matchToPseudo_(m));
+      callback(m && this.matchToPseudo_(m));
     };
-    this.setAsyncFunctionPrototype(this.STRING, 'match', wrapper);
+    this.setAsyncFunctionPrototype(this.STRING, 'match', match);
 
-    wrapper = function search(regexp, callback) {
+    const search = (regexp, callback) => {
       var string = String(this);
-      if (thisInterpreter.isa(regexp, thisInterpreter.REGEXP)) {
+      if (this.isa(regexp, this.REGEXP)) {
         regexp = regexp.data;
       } else {
         regexp = new RegExp(regexp);
       }
       // Example of catastrophic search RegExp:
       // 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaac'.search(/^(a+)+b/)
-      thisInterpreter.maybeThrowRegExp(regexp, callback);
-      if (thisInterpreter['REGEXP_MODE'] === 2) {
+      this.maybeThrowRegExp(regexp, callback);
+      if (this.REGEXP_MODE === 2) {
         if (Interpreter.vm) {
           // Run search in vm.
           var sandbox = {
@@ -1927,14 +1922,14 @@ class Interpreter {
             'regexp': regexp
           };
           var code = 'string.search(regexp)';
-          var n = thisInterpreter.vmCall(code, sandbox, regexp, callback);
+          var n = this.vmCall(code, sandbox, regexp, callback);
           if (n !== Interpreter.REGEXP_TIMEOUT) {
             callback(n);
           }
         } else {
           // Run search in separate thread.
-          var searchWorker = thisInterpreter.createWorker();
-          var pid = thisInterpreter.regExpTimeout(regexp, searchWorker, callback);
+          var searchWorker = this.createWorker();
+          var pid = this.regExpTimeout(regexp, searchWorker, callback);
           searchWorker.onmessage = function (e) {
             clearTimeout(pid);
             callback(e.data);
@@ -1946,18 +1941,18 @@ class Interpreter {
       // Run search natively.
       callback(string.search(regexp));
     };
-    this.setAsyncFunctionPrototype(this.STRING, 'search', wrapper);
+    this.setAsyncFunctionPrototype(this.STRING, 'search', search);
 
-    wrapper = function replace_(substr, newSubstr, callback) {
+    const replace_ = (substr, newSubstr, callback) => {
       // Support for function replacements is the responsibility of a polyfill.
       var string = String(this);
       newSubstr = String(newSubstr);
       // Example of catastrophic replace RegExp:
       // 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaac'.replace(/^(a+)+b/, '')
-      if (thisInterpreter.isa(substr, thisInterpreter.REGEXP)) {
+      if (this.isa(substr, this.REGEXP)) {
         substr = substr.data;
-        thisInterpreter.maybeThrowRegExp(substr, callback);
-        if (thisInterpreter['REGEXP_MODE'] === 2) {
+        this.maybeThrowRegExp(substr, callback);
+        if (this.REGEXP_MODE === 2) {
           if (Interpreter.vm) {
             // Run replace in vm.
             var sandbox = {
@@ -1966,16 +1961,16 @@ class Interpreter {
               'newSubstr': newSubstr,
             };
             var code = 'string.replace(substr, newSubstr)';
-            var str = thisInterpreter.vmCall(code, sandbox, substr, callback);
+            var str = this.vmCall(code, sandbox, substr, callback);
             if (str !== Interpreter.REGEXP_TIMEOUT) {
               callback(str);
             }
           } else {
             // Run replace in separate thread.
-            var replaceWorker = thisInterpreter.createWorker();
-            var pid = thisInterpreter.regExpTimeout(substr, replaceWorker,
+            var replaceWorker = this.createWorker();
+            var pid = this.regExpTimeout(substr, replaceWorker,
               callback);
-            replaceWorker.onmessage = function (e) {
+            replaceWorker.onmessage = (e) => {
               clearTimeout(pid);
               callback(e.data);
             };
@@ -1987,7 +1982,7 @@ class Interpreter {
       // Run replace natively.
       callback(string.replace(substr, newSubstr));
     };
-    this.setAsyncFunctionPrototype(this.STRING, 'replace', wrapper);
+    this.setAsyncFunctionPrototype(this.STRING, 'replace', replace_);
     // Add a polyfill to handle replace's second argument being a function.
     this.polyfills_.push(
       /* POLYFILL START */
@@ -2035,12 +2030,10 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initBoolean(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // Boolean constructor.
-    wrapper = function Boolean(value) {
+    const BooleanWrapper = (value) => {
       value = Interpreter.nativeGlobal.Boolean(value);
-      if (thisInterpreter.calledWithNew()) {
+      if (this.calledWithNew()) {
         // Called as `new Boolean()`.
         this.data = value;
         return this;
@@ -2049,7 +2042,7 @@ class Interpreter {
         return value;
       }
     };
-    this.BOOLEAN = this.createNativeFunction(wrapper, true);
+    this.BOOLEAN = this.createNativeFunction(BooleanWrapper, true);
     this.setProperty(globalObject, 'Boolean', this.BOOLEAN,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
   }
@@ -2059,12 +2052,10 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initNumber(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // Number constructor.
-    wrapper = function Number(value) {
+    const NumberWrapper = (value) => {
       value = arguments.length ? Interpreter.nativeGlobal.Number(value) : 0;
-      if (thisInterpreter.calledWithNew()) {
+      if (this.calledWithNew()) {
         // Called as `new Number()`.
         this.data = value;
         return this;
@@ -2073,7 +2064,7 @@ class Interpreter {
         return value;
       }
     };
-    this.NUMBER = this.createNativeFunction(wrapper, true);
+    this.NUMBER = this.createNativeFunction(NumberWrapper, true);
     this.setProperty(globalObject, 'Number', this.NUMBER,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
@@ -2085,58 +2076,58 @@ class Interpreter {
     }
 
     // Instance methods on Number.
-    wrapper = function toExponential(fractionDigits) {
+    const toExponential = (fractionDigits) => {
       try {
         return Number(this).toExponential(fractionDigits);
       } catch (e) {
         // Throws if fractionDigits isn't within 0-20.
-        thisInterpreter.throwException(thisInterpreter.ERROR, e.message);
+        this.throwException(this.ERROR, e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.NUMBER, 'toExponential', wrapper);
+    this.setNativeFunctionPrototype(this.NUMBER, 'toExponential', toExponential);
 
-    wrapper = function toFixed(digits) {
+    const toFixed = (digits) => {
       try {
         return Number(this).toFixed(digits);
       } catch (e) {
         // Throws if digits isn't within 0-20.
-        thisInterpreter.throwException(thisInterpreter.ERROR, e.message);
+        this.throwException(this.ERROR, e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.NUMBER, 'toFixed', wrapper);
+    this.setNativeFunctionPrototype(this.NUMBER, 'toFixed', toFixed);
 
-    wrapper = function toPrecision(precision) {
+    const toPrecision = (precision) => {
       try {
         return Number(this).toPrecision(precision);
       } catch (e) {
         // Throws if precision isn't within range (depends on implementation).
-        thisInterpreter.throwException(thisInterpreter.ERROR, e.message);
+        this.throwException(this.ERROR, e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.NUMBER, 'toPrecision', wrapper);
+    this.setNativeFunctionPrototype(this.NUMBER, 'toPrecision', toPrecision);
 
-    wrapper = function toString(radix) {
+    const toString = (radix) => {
       try {
         return Number(this).toString(radix);
       } catch (e) {
         // Throws if radix isn't within 2-36.
-        thisInterpreter.throwException(thisInterpreter.ERROR, e.message);
+        this.throwException(this.ERROR, e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.NUMBER, 'toString', wrapper);
+    this.setNativeFunctionPrototype(this.NUMBER, 'toString', toString);
 
-    wrapper = function toLocaleString(locales, options) {
-      locales = locales ? thisInterpreter.pseudoToNative(locales) : undefined;
-      options = options ? thisInterpreter.pseudoToNative(options) : undefined;
+    const toLocaleString = (locales, options) => {
+      locales = locales ? this.pseudoToNative(locales) : undefined;
+      options = options ? this.pseudoToNative(options) : undefined;
       try {
         return Number(this).toLocaleString(
             /** @type {?} */(locales), /** @type {?} */(options));
       } catch (e) {
-        thisInterpreter.throwException(thisInterpreter.ERROR,
+        this.throwException(this.ERROR,
           'toLocaleString: ' + e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.NUMBER, 'toLocaleString', wrapper);
+    this.setNativeFunctionPrototype(this.NUMBER, 'toLocaleString', toLocaleString);
   }
 
   /**
@@ -2144,11 +2135,9 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initDate(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // Date constructor.
-    wrapper = function Date(_value, var_args) {
-      if (!thisInterpreter.calledWithNew()) {
+    const DateWrapper = (_value, var_args) => {
+      if (!this.calledWithNew()) {
         // Called as `Date()`.
         // Calling Date() as a function returns a string, no arguments are heeded.
         return Interpreter.nativeGlobal.Date();
@@ -2159,7 +2148,7 @@ class Interpreter {
         Interpreter.nativeGlobal.Date, args));
       return this;
     };
-    this.DATE = this.createNativeFunction(wrapper, true);
+    this.DATE = this.createNativeFunction(DateWrapper, true);
     this.DATE_PROTO = this.DATE.properties['prototype'];
     this.setProperty(globalObject, 'Date', this.DATE,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
@@ -2188,16 +2177,16 @@ class Interpreter {
       'toDateString', 'toJSON', 'toGMTString', 'toLocaleDateString',
       'toLocaleString', 'toLocaleTimeString', 'toTimeString', 'toUTCString'];
     for (var i = 0; i < functions.length; i++) {
-      wrapper = (function (nativeFunc) {
-        return function (var_args) {
+      const wrapper = ((nativeFunc) => {
+        return (var_args) => {
           var date = this.data;
           if (!(date instanceof Date)) {
-            thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+            this.throwException(this.TYPE_ERROR,
               nativeFunc + ' not called on a Date');
           }
           var args = [];
           for (var i = 0; i < arguments.length; i++) {
-            args[i] = thisInterpreter.pseudoToNative(arguments[i]);
+            args[i] = this.pseudoToNative(arguments[i]);
           }
           return date[nativeFunc].apply(date, args);
         };
@@ -2206,15 +2195,15 @@ class Interpreter {
     }
 
     // Unlike the previous instance methods, toISOString may throw.
-    wrapper = function toISOString() {
+    const toISOString = () => {
       try {
         return this.data.toISOString();
       } catch (e) {
-        thisInterpreter.throwException(thisInterpreter.RANGE_ERROR,
+        this.throwException(this.RANGE_ERROR,
           'toISOString: ' + e.message);
       }
     };
-    this.setNativeFunctionPrototype(this.DATE, 'toISOString', wrapper);
+    this.setNativeFunctionPrototype(this.DATE, 'toISOString', toISOString);
   }
 
   /**
@@ -2222,39 +2211,37 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initRegExp(globalObject) {
-    var thisInterpreter = this;
-    var wrapper;
     // RegExp constructor.
-    wrapper = function RegExp(pattern, flags) {
-      if (thisInterpreter.calledWithNew()) {
+    const RegExpWrapper = (pattern, flags) => {
+      if (this.calledWithNew()) {
         // Called as `new RegExp()`.
         var rgx = this;
       } else {
         // Called as `RegExp()`.
         if (flags === undefined &&
-          thisInterpreter.isa(pattern, thisInterpreter.REGEXP)) {
+          this.isa(pattern, this.REGEXP)) {
           // Regexp(/foo/) returns the same obj.
           return pattern;
         }
-        var rgx = thisInterpreter.createObjectProto(thisInterpreter.REGEXP_PROTO);
+        var rgx = this.createObjectProto(this.REGEXP_PROTO);
       }
       pattern = pattern === undefined ? '' : String(pattern);
       flags = flags ? String(flags) : '';
       if (!/^[gmi]*$/.test(flags)) {
         // Don't allow ES6 flags 'y' and 's' to pass through.
-        thisInterpreter.throwException(thisInterpreter.SYNTAX_ERROR,
+        this.throwException(this.SYNTAX_ERROR,
           'Invalid regexp flag: ' + flags);
       }
       try {
         var nativeRegExp = new Interpreter.nativeGlobal.RegExp(pattern, flags)
       } catch (e) {
         // Throws if flags are repeated.
-        thisInterpreter.throwException(thisInterpreter.SYNTAX_ERROR, e.message);
+        this.throwException(this.SYNTAX_ERROR, e.message);
       }
-      thisInterpreter.populateRegExp(rgx, nativeRegExp);
+      this.populateRegExp(rgx, nativeRegExp);
       return rgx;
     };
-    this.REGEXP = this.createNativeFunction(wrapper, true);
+    this.REGEXP = this.createNativeFunction(RegExpWrapper, true);
     this.REGEXP_PROTO = this.REGEXP.properties['prototype'];
     this.setProperty(globalObject, 'RegExp', this.REGEXP,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
@@ -2280,15 +2267,15 @@ class Interpreter {
       /* POLYFILL END */
     );
 
-    wrapper = function exec(string, callback) {
+    const exec = (string, callback) => {
       var regexp = this.data;
       string = String(string);
       // Get lastIndex from wrapped regexp, since this is settable.
-      regexp.lastIndex = Number(thisInterpreter.getProperty(this, 'lastIndex'));
+      regexp.lastIndex = Number(this.getProperty(this, 'lastIndex'));
       // Example of catastrophic exec RegExp:
       // /^(a+)+b/.exec('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaac')
-      thisInterpreter.maybeThrowRegExp(regexp, callback);
-      if (thisInterpreter['REGEXP_MODE'] === 2) {
+      this.maybeThrowRegExp(regexp, callback);
+      if (this.REGEXP_MODE === 2) {
         if (Interpreter.vm) {
           // Run exec in vm.
           var sandbox = {
@@ -2296,23 +2283,23 @@ class Interpreter {
             'regexp': regexp,
           };
           var code = 'regexp.exec(string)';
-          var match = thisInterpreter.vmCall(code, sandbox, regexp, callback);
+          var match = this.vmCall(code, sandbox, regexp, callback);
           if (match !== Interpreter.REGEXP_TIMEOUT) {
-            thisInterpreter.setProperty(this, 'lastIndex', regexp.lastIndex);
-            callback(thisInterpreter.matchToPseudo_(match));
+            this.setProperty(this, 'lastIndex', regexp.lastIndex);
+            callback(this.matchToPseudo_(match));
           }
         } else {
           // Run exec in separate thread.
           // Note that lastIndex is not preserved when a RegExp is passed to a
           // Web Worker.  Thus it needs to be passed back and forth separately.
-          var execWorker = thisInterpreter.createWorker();
-          var pid = thisInterpreter.regExpTimeout(regexp, execWorker, callback);
+          var execWorker = this.createWorker();
+          var pid = this.regExpTimeout(regexp, execWorker, callback);
           var thisPseudoRegExp = this;
-          execWorker.onmessage = function (e) {
+          execWorker.onmessage = (e) => {
             clearTimeout(pid);
             // Return tuple: [result, lastIndex]
-            thisInterpreter.setProperty(thisPseudoRegExp, 'lastIndex', e.data[1]);
-            callback(thisInterpreter.matchToPseudo_(e.data[0]));
+            this.setProperty(thisPseudoRegExp, 'lastIndex', e.data[1]);
+            callback(this.matchToPseudo_(e.data[0]));
           };
           execWorker.postMessage(['exec', regexp, regexp.lastIndex, string]);
         }
@@ -2320,10 +2307,10 @@ class Interpreter {
       }
       // Run exec natively.
       var match = regexp.exec(string);
-      thisInterpreter.setProperty(this, 'lastIndex', regexp.lastIndex);
-      callback(thisInterpreter.matchToPseudo_(match));
+      this.setProperty(this, 'lastIndex', regexp.lastIndex);
+      callback(this.matchToPseudo_(match));
     };
-    this.setAsyncFunctionPrototype(this.REGEXP, 'exec', wrapper);
+    this.setAsyncFunctionPrototype(this.REGEXP, 'exec', exec);
   }
 
   /**
@@ -2360,17 +2347,16 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initError(globalObject) {
-    var thisInterpreter = this;
     // Error constructor.
-    this.ERROR = this.createNativeFunction(function Error(opt_message) {
-      if (thisInterpreter.calledWithNew()) {
+    this.ERROR = this.createNativeFunction((opt_message) => {
+      if (this.calledWithNew()) {
         // Called as `new Error()`.
         var newError = this;
       } else {
         // Called as `Error()`.
-        var newError = thisInterpreter.createObject(thisInterpreter.ERROR);
+        var newError = this.createObject(this.ERROR);
       }
-      thisInterpreter.populateError(newError, opt_message);
+      this.populateError(newError, opt_message);
       return newError;
     }, true);
     this.setProperty(globalObject, 'Error', this.ERROR,
@@ -2380,25 +2366,25 @@ class Interpreter {
     this.setProperty(this.ERROR.properties['prototype'], 'name', 'Error',
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    var createErrorSubclass = function (name) {
-      var constructor = thisInterpreter.createNativeFunction(
-        function (opt_message) {
-          if (thisInterpreter.calledWithNew()) {
+    const createErrorSubclass = (name) => {
+      var constructor = this.createNativeFunction(
+        (opt_message) => {
+          if (this.calledWithNew()) {
             // Called as `new XyzError()`.
             var newError = this;
           } else {
             // Called as `XyzError()`.
-            var newError = thisInterpreter.createObject(constructor);
+            var newError = this.createObject(constructor);
           }
-          thisInterpreter.populateError(newError, opt_message);
+          this.populateError(newError, opt_message);
           return newError;
         }, true);
-      thisInterpreter.setProperty(constructor, 'prototype',
-        thisInterpreter.createObject(thisInterpreter.ERROR),
+      this.setProperty(constructor, 'prototype',
+        this.createObject(this.ERROR),
         Interpreter.NONENUMERABLE_DESCRIPTOR);
-      thisInterpreter.setProperty(constructor.properties['prototype'], 'name',
+      this.setProperty(constructor.properties['prototype'], 'name',
         name, Interpreter.NONENUMERABLE_DESCRIPTOR);
-      thisInterpreter.setProperty(globalObject, name, constructor,
+      this.setProperty(globalObject, name, constructor,
         Interpreter.NONENUMERABLE_DESCRIPTOR);
 
       return constructor;
@@ -2441,29 +2427,27 @@ class Interpreter {
    * @param {!Interpreter.Object} globalObject Global object.
    */
   initJSON(globalObject) {
-    var wrapper;
-    var thisInterpreter = this;
-    var myJSON = thisInterpreter.createObjectProto(this.OBJECT_PROTO);
+    var myJSON = this.createObjectProto(this.OBJECT_PROTO);
     this.setProperty(globalObject, 'JSON', myJSON,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    wrapper = function parse(text) {
+    const parse = (text) => {
       try {
         var nativeObj = JSON.parse(String(text));
       } catch (e) {
-        thisInterpreter.throwException(thisInterpreter.SYNTAX_ERROR, e.message);
+        this.throwException(this.SYNTAX_ERROR, e.message);
       }
-      return thisInterpreter.nativeToPseudo(nativeObj);
+      return this.nativeToPseudo(nativeObj);
     };
-    this.setProperty(myJSON, 'parse', this.createNativeFunction(wrapper, false));
+    this.setProperty(myJSON, 'parse', this.createNativeFunction(parse, false));
 
-    wrapper = function stringify(value, replacer, space) {
+    const stringify = (value, replacer, space) => {
       if (replacer && replacer.class === 'Function') {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+        this.throwException(this.TYPE_ERROR,
           'Function replacer on JSON.stringify not supported');
       } else if (replacer && replacer.class === 'Array') {
-        replacer = thisInterpreter.pseudoToNative(replacer);
-        replacer = replacer.filter(function (word) {
+        replacer = this.pseudoToNative(replacer);
+        replacer = replacer.filter((word) => {
           // Spec says we should also support boxed primitives here.
           return typeof word === 'string' || typeof word === 'number';
         });
@@ -2475,16 +2459,16 @@ class Interpreter {
         space = undefined;
       }
 
-      var nativeObj = thisInterpreter.pseudoToNative(value);
+      var nativeObj = this.pseudoToNative(value);
       try {
         var str = JSON.stringify(nativeObj, replacer, space);
       } catch (e) {
-        thisInterpreter.throwException(thisInterpreter.TYPE_ERROR, e.message);
+        this.throwException(this.TYPE_ERROR, e.message);
       }
       return str;
     };
     this.setProperty(myJSON, 'stringify',
-      this.createNativeFunction(wrapper, false));
+      this.createNativeFunction(stringify, false));
   }
 
   /**
@@ -2623,10 +2607,10 @@ class Interpreter {
    */
   maybeThrowRegExp(nativeRegExp, callback) {
     var ok;
-    if (this['REGEXP_MODE'] === 0) {
+    if (this.REGEXP_MODE === 0) {
       // Fail: No RegExp support.
       ok = false;
-    } else if (this['REGEXP_MODE'] === 1) {
+    } else if (this.REGEXP_MODE === 1) {
       // Ok: Native RegExp support.
       ok = true;
     } else {
@@ -2664,17 +2648,16 @@ class Interpreter {
    * @returns {number} PID of timeout.  Used to cancel if thread completes.
    */
   regExpTimeout(nativeRegExp, worker, callback) {
-    var thisInterpreter = this;
-    return setTimeout(function () {
+    return setTimeout(() => {
       worker.terminate();
       callback(null);
       try {
-        thisInterpreter.throwException(thisInterpreter.ERROR,
+        this.throwException(this.ERROR,
           'RegExp Timeout: ' + nativeRegExp);
       } catch (_e) {
         // Eat the expected Interpreter.STEP_ERROR.
       }
-    }, this['REGEXP_THREAD_TIMEOUT']);
+    }, this.REGEXP_THREAD_TIMEOUT);
   }
 
   /**
@@ -2858,13 +2841,12 @@ class Interpreter {
     }
 
     if (typeof nativeObj === 'function') {
-      var thisInterpreter = this;
-      var wrapper = function () {
-        var args = Array.prototype.slice.call(arguments).map(function (i) {
-          return thisInterpreter.pseudoToNative(i);
+      const wrapper = () => {
+        var args = Array.prototype.slice.call(arguments).map((i) => {
+          return this.pseudoToNative(i);
         });
-        var value = nativeObj.apply(thisInterpreter, args);
-        return thisInterpreter.nativeToPseudo(value);
+        var value = nativeObj.apply(this, args);
+        return this.nativeToPseudo(value);
       };
       var prototype = Object.getOwnPropertyDescriptor(nativeObj, 'prototype');
       var pseudoFunction = this.createNativeFunction(wrapper, !!prototype);
@@ -3695,7 +3677,7 @@ class Interpreter {
     // For optimum efficiency we could do a binary search and inject the task
     // at the right spot.  But 'push' & 'sort' is just two lines of code.
     this.tasks.push(task);
-    this.tasks.sort(function (a, b) { return a.time - b.time });
+    this.tasks.sort((a, b) => { return a.time - b.time });
   }
 
   /**
@@ -4144,10 +4126,9 @@ class Interpreter {
         }
         state.value = func.nativeFunc.apply(state.funcThis_, state.arguments_);
       } else if (func.asyncFunc) {
-        var thisInterpreter = this;
-        var callback = function (value) {
+        const callback = (value) => {
           state.value = value;
-          thisInterpreter.paused_ = false;
+          this.paused_ = false;
         };
         // Force the argument lengths to match, then append the callback.
         var argLength = func.asyncFunc.length - 1;
